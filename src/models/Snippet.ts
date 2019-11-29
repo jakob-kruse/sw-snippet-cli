@@ -1,4 +1,5 @@
-import { sep, basename } from 'path';
+import { basename, dirname, sep } from 'path';
+import { shopwarePath } from '../SnippetCache';
 
 export default interface Snippet {
   content: object;
@@ -10,6 +11,7 @@ export interface SnippetFile {
   fullPath: string;
   basename: string;
   name: string;
+  trimmedSWPath: string;
 }
 
 export function createSnipetFile(fullPath: string): SnippetFile {
@@ -20,5 +22,6 @@ export function createSnipetFile(fullPath: string): SnippetFile {
     fullPath,
     basename: basename(fullPath),
     name: snippetName,
+    trimmedSWPath: dirname(fullPath.replace(shopwarePath, '...')),
   };
 }

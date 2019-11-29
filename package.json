@@ -1,21 +1,26 @@
 {
-  "name": "snippet-cli",
-  "version": "1.0.0",
-  "main": "index.js",
+  "name": "sw-snippet-cli",
+  "version": "1.0.2",
+  "main": "./build/app.js",
   "license": "MIT",
   "scripts": {
     "start": "ts-node src/app.ts"
+  },
+  "bin": {
+    "snippet-cli": "./build/app.js"
   },
   "dependencies": {
     "chalk": "^3.0.0",
     "deep-get-set": "^1.1.0",
     "fs-extra": "^8.1.0",
+    "lodash": "^4.17.15",
     "prompts": "^2.3.0",
     "walkdir": "^0.4.1"
   },
   "devDependencies": {
     "@types/chalk": "^2.2.0",
     "@types/fs-extra": "^8.0.1",
+    "@types/lodash": "^4.14.149",
     "@types/prompts": "^2.0.3"
   }
 }

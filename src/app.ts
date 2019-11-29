@@ -1,11 +1,20 @@
-import prompts from 'prompts';
-import { amountInfo, info } from './messages';
+#!/usr/bin/env node
+import { dirname } from 'path';
+import { info } from './messages';
 import Snippet from './models/Snippet';
-import { back_value, newType, shouldContinue, shopwarePath } from './prompts';
-import { editSnippet, newSnippet, walkSnippet } from './snippet_manager';
-import { init, clearCache } from './SnippetCache';
-import { resolve } from 'path';
-import { ensureDir } from 'fs-extra';
+import {
+  back_value,
+  newType,
+  promptShouldContinue,
+  promptSnippetAutoComplete,
+} from './prompts';
+import { clearCache, getSnippetFiles, initCache } from './SnippetCache';
+import {
+  editSnippet,
+  findSnippetsInFolder,
+  newSnippet,
+  walkSnippet,
+} from './snippet_manager';
 
 (async () => {
   if (process.argv[2] === 'cache') {
@@ -14,27 +23,22 @@ import { ensureDir } from 'fs-extra';
     return;
   }
 
-  const swPath = resolve(process.argv[2] || (await shopwarePath()));
-  if (!swPath) {
-    info('Nothing? Ok, See you!');
-    return;
-  }
+  await initCache(process.argv[2]);
 
-  ensureDir(swPath);
-  init(swPath);
+  const snippetFiles = getSnippetFiles();
 
-  // const snippets = await findSnippetsInFolder(snippetFolder);
+  const selectedSnippetPath = await promptSnippetAutoComplete(snippetFiles);
 
-  // amountInfo('Found', snippets.length, 'Snippets!');
+  const snippetDir = dirname(
+    snippetFiles.find(snippet => (snippet.fullPath = selectedSnippetPath))
+      .fullPath,
+  );
 
-  // await modify(snippets, '');
+  await modify(await findSnippetsInFolder(snippetDir));
 })();
 
-async function modify(snippets: Snippet[], startPath: string) {
-  const { createNew, path } = await walkSnippet(
-    snippets[0],
-    startPath.split('.'),
-  );
+async function modify(snippets: Snippet[], startPath: string[] = []) {
+  const { createNew, path } = await walkSnippet(snippets[0], startPath);
 
   if (createNew) {
     const type = await newType();
@@ -44,12 +48,12 @@ async function modify(snippets: Snippet[], startPath: string) {
     }
 
     if (!type) {
-      info('Aborted');
+      info('Aborted while walking snippet');
       process.exit(0);
     }
 
     const newPath = await newSnippet(snippets, type, path);
-    const _continue = await shouldContinue();
+    const _continue = await promptShouldContinue();
 
     if (_continue) {
       await modify(snippets, newPath);

@@ -1,34 +1,49 @@
 import { ensureDir, pathExists, readJSON, remove, writeJson } from 'fs-extra';
 import { homedir } from 'os';
-import { basename, join } from 'path';
+import { basename, join, resolve } from 'path';
 import { async } from 'walkdir';
 import cacheEmpty, { SnippetCache } from './Cache';
 import { amountInfo, info } from './messages';
 import { createSnipetFile, SnippetFile } from './models/Snippet';
+import { promptShopwarePath } from './prompts';
 import { SNIPPET_REGEX } from './snippet_manager';
 
 export const cachePath = join(homedir(), '.config', 'snippet-cli.json');
 let cache: SnippetCache;
+export let shopwarePath: string;
 
-async function findSnippets(shopwareDir: string): Promise<SnippetFile[]> {
-  await ensureDir(shopwareDir);
+async function findSnippets(shopwarePath: string): Promise<SnippetFile[]> {
+  await ensureDir(shopwarePath);
 
-  const paths = await async(shopwareDir);
-  return paths
+  const paths = (await async(shopwarePath))
     .filter(path => SNIPPET_REGEX.test(basename(path)))
-    .map(createSnipetFile);
+    .map(path => createSnipetFile(path));
+  return paths;
 }
 
-export async function init(shopwareDir: string) {
+export async function initCache(swPath?: string) {
   let snippets: SnippetFile[];
 
   if (!(await pathExists(cachePath))) {
-    info('Gathering snippet files. This might take a while!');
     await writeJson(cachePath, cacheEmpty, {
       spaces: 2,
     });
     cache = cacheEmpty;
-    snippets = await findSnippets(shopwareDir);
+
+    if (!swPath) {
+      shopwarePath = resolve(await promptShopwarePath());
+      cache.shopwarePath = shopwarePath;
+      if (!shopwarePath) {
+        info('Nothing? Ok, See you!');
+        process.exit(0);
+        return;
+      }
+    } else {
+      shopwarePath = swPath;
+    }
+    info('Gathering snippet files. This might take a while!');
+
+    snippets = await findSnippets(shopwarePath);
     cache.paths = snippets;
     await writeJson(cachePath, cache);
     amountInfo('Found', snippets.length, 'Snippet Files and cached them');
@@ -45,4 +60,8 @@ export async function clearCache() {
   } catch (_) {
     // If there is no cache, it doesnt matter
   }
+}
+
+export function getSnippetFiles(): SnippetFile[] {
+  return cache.paths;
 }

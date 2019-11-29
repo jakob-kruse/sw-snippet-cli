@@ -1,15 +1,15 @@
 import deep from 'deep-get-set';
 import { readdir, readJSON, writeJson } from 'fs-extra';
-import { basename, dirname, join } from 'path';
+import { join } from 'path';
 import { criticalError, info } from './messages';
 import Snippet, { createSnipetFile } from './models/Snippet';
 import {
-  addSnippet,
   back_value,
-  chooseSubLevel,
-  editSnippetValue,
-  newSnippetValue,
   new_value,
+  promptAddSnippet,
+  promptChooseSubLevel,
+  promptEditSnippetValue,
+  promptNewSnippetValue,
 } from './prompts';
 
 export const SNIPPET_REGEX = /[a-z]+-[A-Z]+.json/;
@@ -57,7 +57,7 @@ export async function findSnippetsInFolder(folder: string): Promise<Snippet[]> {
 
 interface WalkResult {
   createNew: boolean;
-  path: string;
+  path: string[];
 }
 
 export async function walkSnippet(
@@ -65,13 +65,10 @@ export async function walkSnippet(
   path: string[],
 ): Promise<WalkResult> {
   const root = snippet.content;
-  if (!path || !path[0]) {
-    path = [];
-  }
-
   let level = deep(root, path);
+
   while (typeof level !== 'string') {
-    const next = await chooseSubLevel(level, path.length !== 0);
+    const next = await promptChooseSubLevel(level, path.length !== 0);
 
     if (next === back_value) {
       path.pop();
@@ -83,7 +80,7 @@ export async function walkSnippet(
       path.pop();
       return {
         createNew: true,
-        path: path.join('.'),
+        path: path,
       };
     }
 
@@ -92,14 +89,14 @@ export async function walkSnippet(
 
   return {
     createNew: false,
-    path: path.join('.'),
+    path: path,
   };
 }
 
 export async function setDeepValue(
   snippetPath: string,
   content: object,
-  path: string,
+  path: string[],
   newValue: string | object,
 ) {
   deep(content, path, newValue);
@@ -114,20 +111,20 @@ export async function setDeepValue(
   }
 }
 
-export async function editSnippet(snippets: Snippet[], path: string) {
+export async function editSnippet(snippets: Snippet[], path: string[]) {
   for await (let snippet of snippets) {
     const snippetName = snippet.file.name;
 
     // Just re-read it in case it changed
     snippet = await readSnippet(snippet.file.fullPath);
 
-    const newValue = await editSnippetValue(
+    const newValue = await promptEditSnippetValue(
       snippetName,
       deep(snippet.content, path),
     );
 
     if (!newValue) {
-      info('Aborted');
+      info('Aborted while editing');
       break;
     }
 
@@ -138,21 +135,21 @@ export async function editSnippet(snippets: Snippet[], path: string) {
 export async function newSnippet(
   snippets: Snippet[],
   type: string,
-  path: string,
+  path: string[],
 ) {
-  const name = await addSnippet(type);
+  const name = await promptAddSnippet(type);
 
   if (path) {
-    path = `${path}.${name}`;
+    path.push(name);
   } else {
-    path = name;
+    path = [name];
   }
 
   for await (let snippet of snippets) {
     if (type === 'collection') {
       setDeepValue(snippet.file.fullPath, snippet.content, path, {});
     } else {
-      const newValue = await newSnippetValue(snippet.file.name);
+      const newValue = await promptNewSnippetValue(snippet.file.name);
 
       setDeepValue(snippet.file.fullPath, snippet.content, path, newValue);
     }
