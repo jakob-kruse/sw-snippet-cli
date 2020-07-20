@@ -13,7 +13,7 @@
     "chalk": "^3.0.0",
     "deep-get-set": "^1.1.0",
     "fs-extra": "^8.1.0",
-    "lodash": "^4.17.15",
+    "lodash": "^4.17.19",
     "prompts": "^2.3.0",
     "walkdir": "^0.4.1"
   },
